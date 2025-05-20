@@ -94,13 +94,13 @@ def displayallmenu():
 
 def viewmenusort():
     
-    print(".--- View Menu ---.")
-    print("Sort options:")
+    print(".--- View Menu ---.\n")
+    
     print("1. View by category")
     print("2. View by avalailability")
     print("3. View by price")
     print("4. View by ID")
-    print("5. Go back to main menu")
+    print('Press \033[1;44m ENTER \033[0m to go back to main menu\n')
 
     choice = input("Enter your choice (1-4):\n").strip()
 
@@ -143,13 +143,21 @@ def viewmenusort():
         cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_price ASC")
 
     elif choice == '4':
-        pass
+        print("1. Ascending")
+        print("2. Descending")
+
+        id_choice = input('Enter your choice (1-2):\n').strip()
+
+        if id_choice == '1':
+            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_id ASC")
+
+        if id_choice == '2':
+            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_id DESC")
+
     
-    elif choice == '5':
-        return
     
     else:
-        print("Invalid choice.")
+        loadingscreen()
         return
 
     rows = cursor.fetchall()
@@ -370,7 +378,6 @@ while True:
     if main_menu == 'C':
         loadingscreen()
         viewmenusort()
-        viewmenu_back = input('Press \033[1;44m ENTER \033[0m to go back to main menu')
         
 
     if main_menu == 'D':
@@ -384,5 +391,3 @@ while True:
             
             continue
     clearscreen()
-
-
