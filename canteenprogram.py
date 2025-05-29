@@ -61,7 +61,7 @@ def stafflogin(max_attempts=3):
         
 
 
-# -------------Function to check for FOOD ID-------------
+# -------------Function to check things (Find id and check availability) -------------
 def findID(id):
     data = [id]
     cursor.execute('SELECT food_id FROM food WHERE food_id =?', data)
@@ -69,11 +69,20 @@ def findID(id):
     if viewid:
         return True
 
+def is_item_available(food_id):
+    cursor.execute("SELECT availability FROM food WHERE food_id = ?", (food_id,))
+    result = cursor.fetchone()
+    if result is None:
+        return None  # Item not exist
+    if result == 1:
+        return True
+    else:
+        return False
 
 # -------------Small functions-------------
 def invalid():
     clearscreen()
-    print("\033[30;41mInvalid input.\033[0m")
+    print("\033[1;30;48;5;52mInvalid input.\033[0m")
     time.sleep(1)
     clearscreen()
 
@@ -99,7 +108,12 @@ def loadingscreen():
 # -------------Order function-------------
 def orderitems():
     clearscreen()
-    print(".--- Order Food Items ---.")
+    
+    title = " ORDER FOOD "
+    print("\n" + "-"*50)
+    print("\033[1;37;40m{:^50}\033[0m".format(title))
+    print("-"*50 + "\n")
+
     
     items_ordered = []
     total_price = 0
@@ -107,19 +121,24 @@ def orderitems():
     while True:
         displayallmenu()
 
-        print("\n\033[1mCART:\033[0m")
+        print("\n\033[1;97;44m [CART] \033[0m")
         if items_ordered:
             for i, item in enumerate(items_ordered, 1):
-                print(f"{i}. {item}")
-            print(f"Total items: {len(items_ordered)}")
-            print(f"Total price: ${total_price:.2f}")
+                print(f"\033[1m{i}. {item}\033[0m")  # Items in cart
+            print(f"\033[1;34mTotal items: \033[0m{len(items_ordered)}") 
+            print(f"\033[1;34mTotal price: \033[0m\033[1;32m${total_price:.2f}\033[0m")
         else:
-            pass
+            print("\033[3;90mcart is empty\033[0m")  
 
         try:
-            item_id = int(input("\nEnter the ID of the food you want to order (or 0 to finish):\n"))
+            print('\n\033[1mEnter ID\033[0m\n\033[3m0 to finish\033[0m')
+
+            item_id = int(input("\033[1m-->\033[0m ").strip())
         except ValueError:
-            invalid()
+            clearscreen()
+            print("\033[1;30;48;5;52mInvalid input. Please enter a valid number.\033[0m")
+            time.sleep(1)
+            clearscreen()
             continue
 
         if item_id == 0:
@@ -127,11 +146,16 @@ def orderitems():
 
         if not findID(item_id):
             clearscreen()
-            print("\033[30;41mNot in menu.\033[0m")
+            print("\033[30;41mItem not in menu.\033[0m")
             time.sleep(1)
             clearscreen()
             continue
-
+        if not is_item_available(item_id):
+            clearscreen()
+            print("\033[30;41mItem not currently available\033[0m")
+            time.sleep(1)
+            clearscreen()
+            continue
 
         # Get item details
         cursor.execute("SELECT food_name, food_price FROM food WHERE food_id = ?", (item_id,))
@@ -141,29 +165,29 @@ def orderitems():
             items_ordered.append(name)
             total_price += price
             clearscreen()
-            print(f"\033[92mAdded {name} - ${price:.2f}\033[0m")
+            print(f"\033[92mAdded {name} - ${price:.2f} to your cart.\033[0m")  # Bright green confirmation
 
     if not items_ordered:
         clearscreen()
-        print("\033[1mNo items were ordered.\033[0m")
+        print("\033[1;3mNo items were ordered.\033[0m")  # Yellow notice
         time.sleep(2)
         return
-    
 
     order_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data = [len(items_ordered), total_price, order_date]
     cursor.execute("INSERT INTO orders (total_items, total_price, order_date) VALUES (?, ?, ?)", data)
     connection.commit()
 
-
     clearscreen()
-    print("\n\033[1mFinal Order Summary:\033[0m")
+    print("\n\033[1;97;44mFinal Order Summary:\033[0m")
     for item in items_ordered:
-        print(f"- {item}")
-    print(f"Total items: {len(items_ordered)}")
-    print(f"Total cost: ${total_price:.2f}")
-    print(f"Order placed on: {order_date}")
-    input("\nPress Enter to return to the main menu.")
+        print(f"\033[1m- {item}\033[0m")  # List of items
+    print(f"\033[1;34mTotal items:\033[0m {len(items_ordered)}")
+    print(f"\033[1;34mTotal cost:\033[0m \033[1;32m${total_price:.2f}\033[0m")
+    print(f"\033[1;34mOrder placed on:\033[0m {order_date}")
+    print("\033\n[1;30;48;5;52m [ENTER] \033[0m \033[1mReturn to Main Menu\033[0m")
+    input("\033[1m-->\033[0m ").lower().strip()
+
 
 def vieworderhistory():
     clearscreen()
@@ -173,9 +197,12 @@ def vieworderhistory():
 
     print(tabulate(rows, headers=order_header, tablefmt="simple_grid"))
 
-    input('Press \033[1;44m ENTER \033[0m to go back to main menu\n')
+    print("\033\n[1;30;48;5;52m [ENTER] \033[0m \033[1mReturn to Main Menu\033[0m\n")
+    input("\033[1m-->\033[0m ").lower().strip()
+    
 
-# -------------Menu functions-------------
+
+# ------------- Menu functions -------------
 def displayallmenu():
 
     # Get data from database
@@ -190,84 +217,161 @@ def displayallmenu():
     print(tabulate(formatted_rows, headers=menu_header, tablefmt="simple_grid"))
 
 def viewmenusort():
+    # TITLE
     clearscreen()
+    title = " View Menu "
+    print("\n" + "="*70)
+    print("\033[1;47m{:^70}\033[0m".format(title))
+    print("="*70 + "\n")
 
-    print(".--- View Menu ---.\n")
-    
-    print("1. View by category")
-    print("2. View by avalailability")
-    print("3. View by price")
-    print("4. View by ID")
-    print('Press \033[1;44m ENTER \033[0m to go back to main menu\n')
+    print("\033[1;30;46m [A] \033[0m \033[1mAvailability View\033[0m\n")
+    print("\033[1;30;46m [I] \033[0m \033[1mID View\033[0m\n")
+    print("\033[1;30;46m [C] \033[0m \033[1mCategory View\033[0m\n")
+    print("\033[1;30;46m [P] \033[0m \033[1mPrice view\033[0m\n")
+    print("\n\033[1;30;48;5;52m [ENTER] \033[0m \033[1mReturn to Main Menu\033[0m\n")
 
-    choice = input("Enter your choice (1-4):\n").strip()
+    view_menu = input("\033[1m-->\033[0m ").upper().strip()
 
-    if choice == '1':
-        displaycategory()
-        try:
-            category_id = int(input("\nEnter the category ID you want to view:\n"))
-        except ValueError:
-            print("Invalid input. Must be a number.")
+    if view_menu == 'I':
+        
+        while True:
+            clearscreen()
+            print("\n" + "="*70)
+            print("\033[1;47m{:^70}\033[0m".format(title))
+            print("="*70 + "\n")        
+
+            print("\033[1m--- Sort by ID ---\n")
+            print("\033[1;30;47m [A] \033[0m Ascending\n")
+            print("\033[1;30;47m [D] \033[0m Descending\n")
+            
+            id_view_menu = input("\033[1m-->\033[0m ").strip().upper()
+
+            if id_view_menu == 'A':
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_id ASC")
+                break
+            elif id_view_menu == 'D':
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_id DESC")
+                break
+            else:
+                invalid()
+
+    elif view_menu == 'A':
+        
+        while True:
+            clearscreen()
+            print("\n" + "="*70)
+            print("\033[1;47m{:^70}\033[0m".format(title))
+            print("="*70 + "\n")
+
+            print("\033[1m--- Filter by availability ---\n")
+            print("\033[1;30;47m [A] \033[0m Availabily only\n")
+            print("\033[1;30;47m [U] \033[0m Unavailable only\n")
+            print("\033[1;30;47m [B] \033[0m Both\n")
+
+            avail_view_menu = input("\n\033[1m-->\033[0m ").strip().upper()
+
+            if avail_view_menu == 'A':
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id WHERE food.availability = 1")
+                break
+            if avail_view_menu == 'U':
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id WHERE food.availability = 0")
+                break
+            if avail_view_menu == 'B':
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id")
+                break
+            else:
+                invalid()
+                continue
+
+    elif view_menu == 'C':
+        
+
+        
+        while True:
+            try:
+                # Title
+                clearscreen()
+                print("\n" + "="*70)
+                print("\033[1;47m{:^70}\033[0m".format(title))
+                print("="*70 + "\n")      
+                
+                displaycategory()
+                
+                # Ask user for category
+                print("\033[1m--- Filter by Category ---\n")
+                print('\n\033[1mEnter ID\033[0m')
+                category_id = int(input("\033[1m-->\033[0m "))
+                break
+            except ValueError:
+                invalid()
+            
+        # If the user inputs a category that doesn't exist, tell them
+        if not cursor.execute("SELECT 1 FROM category WHERE category_id = ?", (category_id,)).fetchone():
+            print("\033[1;31mThat category does not exist.\033[0m")
+            time.sleep(1.5)
             return
 
-        cursor.execute("SELECT category_name FROM category WHERE category_id = ?", (category_id,))
-        category = cursor.fetchone()
-        if not category:
-            print("That category does not exist.")
-            return
-
+        # Filter by category
         cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id WHERE food.category_id = ?", (category_id,))
+        
 
-    elif choice == '2':
-        print("\nFilter by availability:")
-        print("1. Availabily only")
-        print("2. Unavailable only")
-        print("3. Both")
-
-        avail_choice = input("\nEnter your choice (1-3):\n").strip()
-
-        if avail_choice == '1':
-            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id WHERE food.availability = 1")
-        elif avail_choice == '2':
-            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id WHERE food.availability = 0")
-        elif avail_choice == '3':
-            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id")
-        else:
-            print("Invalid choice.")
-            return
+    elif view_menu == 'P':
+        
 
 
-    elif choice == '3':
-        cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_price ASC")
+        while True:
+            
+            # Title
+            clearscreen()
+            print("\n" + "="*70)
+            print("\033[1;47m{:^70}\033[0m".format(title))
+            print("="*70 + "\n")        
 
-    elif choice == '4':
-        print("\n1. Ascending")
-        print("2. Descending")
+            # Ask user for input
+            print("\033[1m--- Sort by Price ---\n")
+            print("\033[1;30;47m [A] \033[0m Ascending\n")
+            print("\033[1;30;47m [D] \033[0m Descending\n")            
+            
+            price_view_menu = input("\033[1m-->\033[0m ").strip().upper()
 
-        id_choice = input('\nEnter your choice (1-2):\n').strip()
+            if price_view_menu == 'A':
+                # Sort by ascending price
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_price ASC")
+                break
+            elif price_view_menu == 'D':
+                # Sort by descending price
+                cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_price DESC")
+                break
+            else:
+                invalid()
 
-        if id_choice == '1':
-            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_id ASC")
-
-        if id_choice == '2':
-            cursor.execute("SELECT food.food_id, food.food_name, category.category_name, food.availability, food.food_price FROM food JOIN category ON food.category_id = category.category_id ORDER BY food.food_id DESC")
-
-    
-    
     else:
-        loadingscreen()
         return
 
     rows = cursor.fetchall()
+    
+    # If no items are found
     if not rows:
-        print("No items found for this filter.")
+        print("\n\033[1;30;48;5;52m No items found for this filter \033[0m")
+        time.sleep(1)
     else:
         loadingscreen()
+        
+        # Title
+        print("\n" + "="*70)
+        print("\033[1;47m{:^70}\033[0m".format(title))
+        print("="*70 + "\n")      
+
+        # Print out sorted items
         formatted_rows = [(id, name, cat, 'Yes' if avail else 'No', f"${price:.2f}") for id, name, cat, avail, price in rows]
-        print("\n\033[1mSorted Menu Items:\033[0m")
+        print("\n\033[1mSorted Menu:\033[0m")
         print(tabulate(formatted_rows, headers=menu_header, tablefmt="simple_grid"))
 
-    input('Press \033[1;44m ENTER \033[0m to go back to main menu\n')
+    # Enter to go back to main menu
+    print("\n\033[1;30;48;5;52m [ENTER] \033[0m \033[1mReturn to Main Menu\033[0m\n")
+    input("\033[1m-->\033[0m ").lower().strip()
+
+
 
 def displaycategory():
     viewall = cursor.execute('SELECT * FROM "category"')
@@ -279,7 +383,7 @@ def displaycategory():
 
 
 
-# -------------Edit menu functions-------------
+# ------------- Edit menu functions -------------
 def additem():
     clearscreen()
 
@@ -333,108 +437,130 @@ def additem():
     connection.commit()
 
 def edititem():
-    clearscreen()
+    while True:
+        clearscreen()
 
-    title = " UPDATE ITEM "
-    print("\n" + "-"*50)
-    print("\033[1;37;40m{:^50}\033[0m".format(title))
-    print("-"*50 + "\n\n")
-    time.sleep(1)
-    
-    displayallmenu()
+        title = " UPDATE ITEM "
+        print("\n" + "-"*50)
+        print("\033[1;37;40m{:^50}\033[0m".format(title))
+        print("-"*50 + "\n\n")
+        time.sleep(1)
+        
+        displayallmenu()
 
-    try:
-        food_id = int(input("Enter the ID of the item you want to edit:\n"))
-    except ValueError:
-        print("Invalid input. Must be a number.")
-        return
-
-    if not findID(food_id):
-        print("Item with that ID doesn't exist.")
-        return
-
-    print("What would you like to update?")
-    print("1. Name")
-    print("2. Price")
-    print("3. Availability")
-    print("4. Category")
-    
-    edit_menu = input("Enter the number of the thing you want to update:\n").strip()
-
-    if edit_menu == '1':
-        new_name = input("Enter new name:\n").strip()
-        cursor.execute("UPDATE food SET food_name = ? WHERE food_id = ?", (new_name, food_id))
-
-    elif edit_menu == '2':
         try:
-            new_price = float(input("Enter new price:\n").strip())
-            if new_price <= 0:
-                print("Price must be greater than 0.")
-                return
-            cursor.execute("UPDATE food SET food_price = ? WHERE food_id = ?", (new_price, food_id))
+            food_id = int(input("Enter the ID of the item you want to edit:\n"))
         except ValueError:
-            print("Invalid input. Must be a number.")
-            return
+            invalid()
+            continue
 
-    elif edit_menu == '3':
-        try:
-            new_availability = int(input("Enter availability (1 = Yes, 0 = No):\n"))
-            if new_availability not in (0, 1):
-                raise ValueError
-            cursor.execute("UPDATE food SET availability = ? WHERE food_id = ?", (new_availability, food_id))
-        except ValueError:
-            print("Invalid input. Enter 1 or 0.")
-            return
+        if not findID(food_id):
+            invalid()
+            continue
+        title = " UPDATE ITEM "
+        print("\n" + "-"*50)
+        print("\033[1;37;40m{:^50}\033[0m".format(title))
+        print("-"*50 + "\n\n")
+        
+        print("\033[1;30;47m [N] \033[0m \033[1mUpdate Name\033[0m\n")
+        print("\033[1;30;47m [P] \033[0m \033[1mUpdate Price\033[0m\n")
+        print("\033[1;30;47m [A] \033[0m \033[1mUpdate Availability\033[0m\n")
+        print("\033[1;30;47m [C] \033[0m \033[1mUpdate Category\033[0m\n")
+        print("\n\033[1;30;48;5;52m [ENTER] \033[0m \033[1mReturn to Edit Menu\033[0m\n")
 
-    elif edit_menu == '4':
-        displaycategory()
-        try:
-            new_category = int(input("Enter new category ID:\n"))
-            if new_category < 1 or new_category > 7:
-                print("Invalid category.")
-                return
-            cursor.execute("UPDATE food SET category_id = ? WHERE food_id = ?", (new_category, food_id))
-        except ValueError:
-            print("Invalid input.")
-            return
+        edit_menu = input("\033[1m-->\033[0m ").strip().upper()
 
-    else:
-        print("Invalid input. Please choose")
-        return
+        if edit_menu == '':
+            return
+        
+        if edit_menu == 'N':
+            print('\033[1mEnter new name:')
+            new_name = input("\033[1m-->\033[0m ").strip()
+            cursor.execute("UPDATE food SET food_name = ? WHERE food_id = ?", (new_name, food_id))
+            break
+
+        elif edit_menu == 'P':
+            try:
+                print('\033[1mEnter price:')
+                new_price = float(input("\033[1m-->\033[0m\n").strip())
+                if new_price <= 0:
+                    print("Price must be greater than 0.")
+                    continue
+                cursor.execute("UPDATE food SET food_price = ? WHERE food_id = ?", (new_price, food_id))
+                break
+            except ValueError:
+                print("Invalid input. Must be a number.")
+                continue
+
+        elif edit_menu == 'A':
+            try:
+                print('\033[1mEnter availability\033[0m\n\033[3m1 = yes 0 = no')
+                new_availability = int(input("\033[1m--> \033[0m"))
+                if new_availability not in (0, 1):
+                    raise ValueError
+                cursor.execute("UPDATE food SET availability = ? WHERE food_id = ?", (new_availability, food_id))
+                break
+            except ValueError:
+                print("Invalid input. Enter 1 or 0.")
+                continue
+
+        elif edit_menu == 'C':
+            displaycategory()
+            try:
+                print('\033[1mEnter category\033[0m')
+                new_category = int(input("\033[1m--> \033[0m"))
+                if new_category < 1 or new_category > 7:
+                    print("Invalid category.")
+                    continue
+                cursor.execute("UPDATE food SET category_id = ? WHERE food_id = ?", (new_category, food_id))
+                break
+            except ValueError:
+                print("Invalid input.")
+                continue
+
+        else:
+            print("Invalid input. Please choose")
+            continue
 
     connection.commit()
     print("Item updated successfully.")
     time.sleep(1)
 
 def deleteitem():
-    clearscreen()
-
-    title = " UPDATE ITEM "
-    print("\n" + "-"*50)
-    print("\033[1;37;40m{:^50}\033[0m".format(title))
-    print("-"*50 + "\n\n")
-    time.sleep(1)
     
-    displayallmenu()
+    while True:
+        
+        try:
+            clearscreen()
 
-    try:
-        food_id = int(input("Enter the ID of the item you want to delete:\n"))
-    except ValueError:
-        print("Invalid input. Must be a number.\n")
-        time.sleep(1)
-        clearscreen()
-        return
+            title = " DELETE ITEM "
+            print("\n" + "-"*50)
+            print("\033[1;37;40m{:^50}\033[0m".format(title))
+            print("-"*50 + "\n\n")
+            time.sleep(1)
+            
+            displayallmenu()
 
-    if not findID(food_id):
-        print("No item with that ID exists.\n")
-        time.sleep(1)
-        clearscreen()
-        return
+            print("\033[1m--- Delete Item ---\n")
+            print("\033[1mEnter ID")
+            food_id = int(input("\033[1m-->"))
+            
+            if not findID(food_id):
+                invalid()
+                continue
+            break
+        
+        except ValueError:
+            invalid()
+            continue
+
+        
 
     # Get the item details before deleting
     cursor.execute("SELECT food_name FROM food WHERE food_id = ?", (food_id,))
     item_name = cursor.fetchone()[0]
 
+    clearscreen()
     confirm = input(f"Are you sure you want to delete '{item_name}'? (y/n): ").lower().strip()
     if confirm == 'y':
         cursor.execute("DELETE FROM food WHERE food_id = ?", (food_id,))
@@ -459,9 +585,9 @@ def editmenu():
         print("\033[1;47m{:^70}\033[0m".format(title))
         print("="*70 + "\n")
 
-        print("\033[1;30;48;5;33m [A] \033[0m \033[1mAdd New Item\033[0m\n")
-        print("\033[1;30;48;5;33m [B] \033[0m \033[1mDelete Item\033[0m\n")
-        print("\033[1;30;48;5;33m [C] \033[0m \033[1mUpdate Item\033[0m\n")
+        print("\033[1;38;5;16;48;5;94m [A] \033[0m \033[1mAdd New Item\033[0m\n")
+        print("\033[1;38;5;16;48;5;94m [B] \033[0m \033[1mDelete Item\033[0m\n")
+        print("\033[1;38;5;16;48;5;94m [C] \033[0m \033[1mUpdate Item\033[0m\n")
         print("\033\n[1;30;48;5;52m [ENTER] \033[0m \033[1mReturn to Main Menu\033[0m\n")
 
         edit_menu = input("\033[1m-->\033[0m ").lower().strip()
@@ -476,26 +602,10 @@ def editmenu():
             break
 
 
-# Order functions
-def orderitem():
-    
-    print('.--- Order Items ---.')
-
-    ordered_items = []
-    item_count = 0
-
-    while True:
-        try:
-            pass
-        except ValueError:
-            pass
 
 
-#.--- Start of main program ---.
-clearscreen()
 
-
-# Main program loop
+# --------- Main program loop ---------
 while True:
     
     # TITLE
@@ -546,4 +656,6 @@ while True:
         time.sleep(3)
         clearscreen()
         sys.exit()
+    else:
+        invalid()
     clearscreen()
