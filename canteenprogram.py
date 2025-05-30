@@ -187,8 +187,11 @@ def orderitems():
         item = cursor.fetchone()
         if item:
             name, price = item
+            
+            # Put into list for cart
             items_ordered.append(name)
             total_price += price
+            
             clearscreen()
             print(f"\033[92mAdded {name} - ${price:.2f} to your cart.\033[0m")
 
